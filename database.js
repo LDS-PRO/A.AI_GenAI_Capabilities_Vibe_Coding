@@ -8,7 +8,7 @@ const doc = new GoogleSpreadsheet(
 );
 
 function printPostecodeValues(Data) {
-  console.log(`Name: ${Data.adjcluster}`);
+  console.log(`Cluster updated to: ${Data.adjcluster}`);
   console.log("---------------");
 }
 
