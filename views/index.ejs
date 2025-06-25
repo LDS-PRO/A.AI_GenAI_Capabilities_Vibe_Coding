@@ -11,35 +11,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
     <!-- Bootstrap 5.3.6 - Latest version as of 2024 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
     
-    <!-- jQuery 3.7.1 - Latest version as of 2024 -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- jQuery 3.7.1 - Latest stable version -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     
-    <!-- Tableau Extensions API - Latest version -->
+    <!-- Tableau Extensions API -->
     <script src="https://cdn.jsdelivr.net/gh/tableau/extensions-api@master/lib/tableau.extensions.1.latest.js"></script>
     
-    <!-- Our custom JavaScript file -->
+    <!-- Custom JavaScript with defer -->
     <script src="./index.js" defer></script>
+    
+    <!-- Professional styling -->
+    <style>
+      body {
+        background-color: #f8f9fa;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+      
+      .main-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-top: 3rem;
+      }
+      
+      .header {
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+      }
+      
+      .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+      }
+      
+      .form-control {
+        border: 1px solid #ced4da;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+      }
+      
+      .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+      
+      .btn-update {
+        background-color: #0d6efd;
+        border: none;
+        padding: 0.5rem 2rem;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      
+      .btn-update:hover {
+        background-color: #0b5ed7;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .btn-update:active {
+        transform: translateY(0);
+      }
+      
+      /* Status message styling */
+      .status-message {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        display: none;
+      }
+      
+      /* Add top margin to account for fixed header */
+      .top-buffer {
+        margin-top: 20px;
+      }
+    </style>
   </head>
+  
   <body>
-    <div class="container" style="margin: 30px;">
-      <div class="row">
-        <div class="col">
-          <div class="form-group">
-            <!-- Label for accessibility -->
-            <label for="clustervalueid" class="form-label">Enter new cluster value:</label>
-            <!-- Input field for cluster value -->
-            <textarea class="form-control" placeholder="Enter new cluster value" id="clustervalueid" name="clustervalue" rows="1"></textarea>
+    <!-- Status Message (hidden by default) -->
+    <div id="statusMessage" class="status-message alert" role="alert"></div>
+    
+    <div class="container">
+      <div class="row top-buffer justify-content-center">
+        <div class="col-md-8 col-lg-6">
+          <div class="main-container">
+            <!-- Header -->
+            <div class="header">
+              <h2 class="mb-0">Tableau Cluster Update</h2>
+              <p class="text-muted mt-2 mb-0">Update cluster values for selected postal codes</p>
+            </div>
+            
+            <!-- Form -->
+            <form onsubmit="return false;">
+              <div class="mb-4">
+                <label for="newCluster" class="form-label">Enter new cluster value:</label>
+                <textarea 
+                  id="newCluster" 
+                  class="form-control" 
+                  rows="4" 
+                  placeholder="Enter new cluster value"
+                  onkeydown="if(event.ctrlKey && event.key === 'Enter') updateRequest(<%= cluster %>,<%= PC %>)"
+                ></textarea>
+              </div>
+              
+              <div class="d-grid">
+                <button 
+                  type="button" 
+                  class="btn btn-primary btn-update" 
+                  onclick="updateRequest(<%= cluster %>,<%= PC %>)"
+                >
+                  Update Cluster
+                </button>
+              </div>
+            </form>
+            
+            <!-- Debug output (only in development) -->
+            <script>
+              // Debug: Log the PC value from server
+              console.log('Initial PC value:', <%- JSON.stringify(PC) %>);
+            </script>
           </div>
-        </div>
-        <div class="col-auto">
-          <!-- Update button that calls updateRequest with server-provided values -->
-          <button type="submit" class="btn btn-primary" onclick="updateRequest(<%= cluster %>,<%= PC %>)">Update</button>
         </div>
       </div>
     </div>
+    
+    <!-- Add status message functionality -->
+    <script>
+      // Show status messages
+      function showStatus(message, type = 'success') {
+        const statusEl = document.getElementById('statusMessage');
+        statusEl.className = `status-message alert alert-${type === 'success' ? 'success' : 'danger'}`;
+        statusEl.textContent = message;
+        statusEl.style.display = 'block';
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+          statusEl.style.display = 'none';
+        }, 3000);
+      }
+      
+      // Override updateRequest to add status messages
+      const originalUpdateRequest = window.updateRequest;
+      window.updateRequest = function(cluster, PC) {
+        // Show loading state
+        const button = document.querySelector('.btn-update');
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+        
+        // Call original function
+        const result = originalUpdateRequest(cluster, PC);
+        
+        // Reset button after operation
+        setTimeout(() => {
+          button.disabled = false;
+          button.textContent = originalText;
+        }, 1000);
+        
+        return result;
+      }
+    </script>
   </body>
 </html>
-
-  
